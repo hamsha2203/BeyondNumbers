@@ -126,56 +126,67 @@ export async function POST(request: Request) {
     });
 
     const rows = existing.data.values ?? [];
+    const cycleId = process.env.BN_ACTIVE_CYCLE_ID || "2026_RNR";
+    const matches = rows
+      .slice(1)
+      .map((row, index) => ({ row, sheetRow: index + 2 }))
+      .filter(
+        ({ row }) =>
+          row[1] === cycleId &&
+          row[2] === evaluatorId &&
+          row[4] === subjectId
+      );
 
-    // Columns: C = evaluator ID, E = evaluated member ID,
-    // following the header row in the Evaluations tab.
-    const duplicate = rows.slice(1).some(
-      (row) =>
-        row[2] === evaluatorId &&
-        row[4] === subjectId &&
-        row[11] !== "Rejected"
-    );
-
-    if (duplicate) {
+    if (matches.length > 1) {
       return NextResponse.json(
-        { error: "An evaluation already exists for this evaluator and member." },
+        { error: "Multiple active-cycle evaluations exist; ask the PM to resolve them before resubmitting." },
         { status: 409 }
       );
     }
 
     const now = new Date().toISOString();
-    const evaluationId = crypto.randomUUID();
-    const cycleId = process.env.BN_ACTIVE_CYCLE_ID || "2026_RNR";
+    const existingEvaluation = matches[0];
+    const evaluationId = existingEvaluation?.row[0] || crypto.randomUUID();
+    const createdAt = existingEvaluation?.row[12] || now;
+    const values = [[
+      evaluationId,
+      cycleId,
+      evaluator.id,
+      evaluator.name,
+      subject.id,
+      subject.name,
+      subject.department,
+      JSON.stringify(normalizedCounts),
+      total,
+      "",
+      note,
+      "Submitted",
+      createdAt,
+      now,
+    ]];
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: "Evaluations!A:N",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: [[
-          evaluationId,
-          cycleId,
-          evaluator.id,
-          evaluator.name,
-          subject.id,
-          subject.name,
-          subject.department,
-          JSON.stringify(normalizedCounts),
-          total,
-          "",
-          note,
-          "Submitted",
-          now,
-          now,
-        ]],
-      },
-    });
+    if (existingEvaluation) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Evaluations!A${existingEvaluation.sheetRow}:N${existingEvaluation.sheetRow}`,
+        valueInputOption: "RAW",
+        requestBody: { values },
+      });
+    } else {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: "Evaluations!A:N",
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values },
+      });
+    }
 
     return NextResponse.json({
       success: true,
       evaluationId,
       total,
+      replaced: Boolean(existingEvaluation),
     });
   } catch (error) {
     console.error("Evaluation submission failed:", error);

@@ -76,7 +76,7 @@ export default function GradePage() {
 
     if (
       !window.confirm(
-        `Submit evaluation for ${subject.name}? Total: ${total} points. You cannot submit it again.`
+        `Submit evaluation for ${subject.name}? Total: ${total} points. This replaces any previous submission for this member in the active cycle.`
       )
     ) {
       return;
