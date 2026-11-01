@@ -3,16 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ClipboardList, LockKeyhole, Search, Users } from "lucide-react";
-import { members, vpAssignments } from "@/lib/members";
+import { activeMembers, vpAssignments } from "@/lib/members";
 
 export default function EvaluateMBPage() {
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
-  const selected = members.find((member) => member.id === selectedId);
+  const selected = activeMembers.find((member) => member.id === selectedId);
   const assignedMBs = useMemo(() => {
     if (!selected || selected.role !== "VP") return [];
     const ids = vpAssignments.filter((a) => a.evaluatorId === selected.id).map((a) => a.subjectId);
-    return members.filter((m) => ids.includes(m.id) && m.role === "MB" && m.name.toLowerCase().includes(search.toLowerCase()));
+    return activeMembers.filter((m) => ids.includes(m.id) && m.role === "MB" && m.name.toLowerCase().includes(search.toLowerCase()));
   }, [selected, search]);
 
   return (
@@ -23,7 +23,7 @@ export default function EvaluateMBPage() {
         <label htmlFor="vp-select">Select your name <span>*</span></label>
         <select id="vp-select" value={selectedId} onChange={(e) => { setSelectedId(e.target.value); setSearch(""); }}>
           <option value="">Choose a VP…</option>
-          {members.filter((m) => m.role === "VP").map((m) => <option key={m.id} value={m.id}>{m.name} — {m.department}</option>)}
+          {activeMembers.filter((m) => m.role === "VP").map((m) => <option key={m.id} value={m.id}>{m.name} — {m.department}</option>)}
         </select>
         {selected ? <div className="selected-member"><div className="member-initials">{selected.name.split(" ").map((n) => n[0]).join("")}</div><div><strong>{selected.name}</strong><small>Vice President · {selected.department}</small></div><span className="assignment-count">{assignedMBs.length} shown</span></div> : <div className="select-hint"><Users size={18} /><span>Your assigned MBs will appear here after you select your name.</span></div>}
       </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { members } from "@/lib/members";
+import { activeMembers } from "@/lib/members";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
 
 type Row = { name: string; department: string; points: number };
@@ -27,7 +27,7 @@ export default function DashboardPage() {
       }
 
       const evaluations: Evaluation[] = JSON.parse(window.localStorage.getItem("bn-evaluations") || "[]");
-      const eligible = members.filter((member) => member.role === role);
+      const eligible = activeMembers.filter((member) => member.role === role);
       const nextRows = eligible
         .map((member) => ({
           name: member.name,

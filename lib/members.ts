@@ -1,4 +1,4 @@
-export type Member = { id: string; name: string; role: "MB" | "VP" | "GB" | "EH"; department: string };
+export type Member = { id: string; name: string; role: "MB" | "VP" | "GB" | "EH"; department: string; active?: boolean };
 export const members: Member[] = [
   {
     "id": "eh-001",
@@ -124,7 +124,8 @@ export const members: Member[] = [
     "id": "gb-021",
     "name": "Aditya Vvidhaan",
     "role": "GB",
-    "department": "oGV"
+    "department": "oGV",
+    "active": false
   },
   {
     "id": "gb-022",
@@ -274,13 +275,15 @@ export const members: Member[] = [
     "id": "gb-046",
     "name": "Melvyn Sebastian",
     "role": "GB",
-    "department": "MKT"
+    "department": "MKT",
+    "active": false
   },
   {
     "id": "gb-047",
     "name": "Halima abubakar",
     "role": "GB",
-    "department": "MKT"
+    "department": "MKT",
+    "active": false
   },
   {
     "id": "gb-048",
@@ -358,7 +361,8 @@ export const members: Member[] = [
     "id": "gb-060",
     "name": "Mohana Ramya",
     "role": "GB",
-    "department": "BD"
+    "department": "BD",
+    "active": false
   },
   {
     "id": "gb-061",
@@ -421,205 +425,31 @@ export const members: Member[] = [
     "department": "PM"
   }
 ];
-export type EvaluationAssignment = { evaluatorId: string; subjectId: string };
-export const mbAssignments: EvaluationAssignment[] = [
-  {
-    "evaluatorId": "mb-007",
-    "subjectId": "gb-010"
-  },
-  {
-    "evaluatorId": "mb-008",
-    "subjectId": "gb-011"
-  },
-  {
-    "evaluatorId": "mb-009",
-    "subjectId": "gb-012"
-  },
-  {
-    "evaluatorId": "mb-007",
-    "subjectId": "gb-013"
-  },
-  {
-    "evaluatorId": "mb-008",
-    "subjectId": "gb-014"
-  },
-  {
-    "evaluatorId": "mb-009",
-    "subjectId": "gb-015"
-  },
-  {
-    "evaluatorId": "mb-007",
-    "subjectId": "gb-016"
-  },
-  {
-    "evaluatorId": "mb-008",
-    "subjectId": "gb-017"
-  },
-  {
-    "evaluatorId": "mb-009",
-    "subjectId": "gb-018"
-  },
-  {
-    "evaluatorId": "mb-007",
-    "subjectId": "gb-019"
-  },
-  {
-    "evaluatorId": "mb-008",
-    "subjectId": "gb-020"
-  },
-  {
-    "evaluatorId": "mb-009",
-    "subjectId": "gb-021"
-  },
-  {
-    "evaluatorId": "mb-007",
-    "subjectId": "gb-022"
-  },
-  {
-    "evaluatorId": "mb-023",
-    "subjectId": "gb-026"
-  },
-  {
-    "evaluatorId": "mb-024",
-    "subjectId": "gb-027"
-  },
-  {
-    "evaluatorId": "mb-025",
-    "subjectId": "gb-028"
-  },
-  {
-    "evaluatorId": "mb-023",
-    "subjectId": "gb-029"
-  },
-  {
-    "evaluatorId": "mb-024",
-    "subjectId": "gb-030"
-  },
-  {
-    "evaluatorId": "mb-025",
-    "subjectId": "gb-031"
-  },
-  {
-    "evaluatorId": "mb-023",
-    "subjectId": "gb-032"
-  },
-  {
-    "evaluatorId": "mb-024",
-    "subjectId": "gb-033"
-  },
-  {
-    "evaluatorId": "mb-025",
-    "subjectId": "gb-034"
-  },
-  {
-    "evaluatorId": "mb-023",
-    "subjectId": "gb-035"
-  },
-  {
-    "evaluatorId": "mb-024",
-    "subjectId": "gb-036"
-  },
-  {
-    "evaluatorId": "mb-037",
-    "subjectId": "gb-040"
-  },
-  {
-    "evaluatorId": "mb-038",
-    "subjectId": "gb-041"
-  },
-  {
-    "evaluatorId": "mb-039",
-    "subjectId": "gb-042"
-  },
-  {
-    "evaluatorId": "mb-037",
-    "subjectId": "gb-043"
-  },
-  {
-    "evaluatorId": "mb-038",
-    "subjectId": "gb-044"
-  },
-  {
-    "evaluatorId": "mb-039",
-    "subjectId": "gb-045"
-  },
-  {
-    "evaluatorId": "mb-037",
-    "subjectId": "gb-046"
-  },
-  {
-    "evaluatorId": "mb-038",
-    "subjectId": "gb-047"
-  },
-  {
-    "evaluatorId": "mb-039",
-    "subjectId": "gb-048"
-  },
-  {
-    "evaluatorId": "mb-037",
-    "subjectId": "gb-049"
-  },
-  {
-    "evaluatorId": "mb-038",
-    "subjectId": "gb-050"
-  },
-  {
-    "evaluatorId": "mb-039",
-    "subjectId": "gb-051"
-  },
-  {
-    "evaluatorId": "mb-037",
-    "subjectId": "gb-052"
-  },
-  {
-    "evaluatorId": "mb-038",
-    "subjectId": "gb-053"
-  },
-  {
-    "evaluatorId": "mb-054",
-    "subjectId": "gb-057"
-  },
-  {
-    "evaluatorId": "mb-055",
-    "subjectId": "gb-058"
-  },
-  {
-    "evaluatorId": "mb-056",
-    "subjectId": "gb-059"
-  },
-  {
-    "evaluatorId": "mb-054",
-    "subjectId": "gb-060"
-  },
-  {
-    "evaluatorId": "mb-055",
-    "subjectId": "gb-061"
-  },
-  {
-    "evaluatorId": "mb-056",
-    "subjectId": "gb-062"
-  },
-  {
-    "evaluatorId": "mb-054",
-    "subjectId": "gb-063"
-  },
-  {
-    "evaluatorId": "mb-055",
-    "subjectId": "gb-064"
-  },
-  {
-    "evaluatorId": "mb-056",
-    "subjectId": "gb-065"
-  },
-  {
-    "evaluatorId": "mb-054",
-    "subjectId": "gb-066"
-  },
-  {
-    "evaluatorId": "mb-055",
-    "subjectId": "gb-067"
-  }
+export type EvaluationAssignment = { evaluatorId: string; subjectId: string; teamName?: string };
+export type MemberTeam = { name: string; leaderId: string; subjectIds: string[] };
+
+export const memberTeams: MemberTeam[] = [
+  { name: "Team Kiraak", leaderId: "mb-007", subjectIds: ["gb-011", "gb-014", "gb-020", "gb-017"] },
+  { name: "Last Puff", leaderId: "mb-039", subjectIds: ["gb-049", "gb-052", "gb-050", "gb-045"] },
+  { name: "Nicoteen", leaderId: "mb-038", subjectIds: ["gb-041", "gb-042", "gb-040", "gb-051", "gb-043"] },
+  { name: "Beedi Baddies", leaderId: "mb-055", subjectIds: ["gb-058", "gb-057", "gb-059", "gb-064"] },
+  { name: "Malang", leaderId: "mb-024", subjectIds: ["gb-031", "gb-036", "gb-028", "gb-027", "gb-029", "gb-034"] },
+  { name: "Sugar Daddies", leaderId: "mb-056", subjectIds: ["gb-062", "gb-066", "gb-065", "gb-067", "gb-063", "gb-061"] },
+  { name: "Bazooka", leaderId: "mb-023", subjectIds: ["gb-026", "gb-035", "gb-030", "gb-033", "gb-032"] },
+  { name: "Fourbidden", leaderId: "mb-009", subjectIds: ["gb-018", "gb-022", "gb-010"] },
+  { name: "Chingaari", leaderId: "mb-008", subjectIds: ["gb-016", "gb-013", "gb-019", "gb-015", "gb-012"] },
+  { name: "Zora", leaderId: "mb-037", subjectIds: ["gb-048", "gb-044", "gb-053"] },
 ];
+
+export const mbAssignments: EvaluationAssignment[] = memberTeams.flatMap((team) =>
+  team.subjectIds.map((subjectId) => ({
+    evaluatorId: team.leaderId,
+    subjectId,
+    teamName: team.name,
+  }))
+);
+
+export const activeMembers = members.filter((member) => member.active !== false);
 export const vpAssignments: EvaluationAssignment[] = [
   {
     "evaluatorId": "vp-002",

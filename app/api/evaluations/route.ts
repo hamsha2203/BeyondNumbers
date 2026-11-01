@@ -1,67 +1,13 @@
 import { NextResponse } from "next/server";
 import { getGoogleSheets, getSpreadsheetId } from "@/lib/googleSheets";
 import {
-  members,
+  activeMembers,
   mbAssignments,
   vpAssignments,
 } from "@/lib/members";
+import { metricsForEvaluation } from "@/lib/scoring";
 
 export const runtime = "nodejs";
-
-type Metric = {
-  label: string;
-  points: number;
-};
-
-function metricsForDepartment(dept: string): Metric[] {
-  if (dept === "oGV") {
-    return [
-      { label: "APL", points: 2 },
-      { label: "NOC", points: 5 },
-      { label: "APD", points: 20 },
-      { label: "RE", points: 50 },
-    ];
-  }
-
-  if (dept === "oGTa") {
-    return [
-      { label: "APL", points: 2 },
-      { label: "NOC", points: 50 },
-      { label: "APD", points: 100 },
-      { label: "RE", points: 250 },
-    ];
-  }
-
-  if (dept === "MKT") {
-    return [
-      { label: "Opens", points: 1 },
-      { label: "Content created", points: 5 },
-      { label: "Campaign runs", points: 20 },
-      { label: "MOU signed", points: 250 },
-    ];
-  }
-
-  if (dept === "BD") {
-    return [
-      { label: "In-kind partnerships ₹10K–₹20K", points: 50 },
-      { label: "In-kind partnerships above ₹20K", points: 100 },
-      { label: "Non-monetary partnerships", points: 30 },
-      { label: "Market research items", points: 25 },
-      { label: "EwA–ELD", points: 20 },
-    ];
-  }
-
-  return [
-    { label: "LC event attendance", points: 20 },
-    { label: "Department meeting attendance", points: 15 },
-    { label: "Team meeting attendance", points: 10 },
-    { label: "Conference", points: 100 },
-    { label: "Applied for OC/CC roles", points: 25 },
-    { label: "Accepted for OC/CC roles", points: 50 },
-    { label: "XP APD", points: 500 },
-    { label: "XP RE", points: 1000 },
-  ];
-}
 
 export async function POST(request: Request) {
   try {
@@ -88,12 +34,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const evaluator = members.find(
+    const evaluator = activeMembers.find(
       (member) =>
         member.id === evaluatorId && member.role === evaluatorRole
     );
 
-    const subject = members.find(
+    const subject = activeMembers.find(
       (member) => member.id === subjectId
     );
 
@@ -126,7 +72,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const metrics = metricsForDepartment(subject.department);
+    const metrics = metricsForEvaluation(subject);
     const normalizedCounts: { metric: string; count: number; points: number }[] = [];
 
     for (const item of counts) {

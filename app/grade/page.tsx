@@ -3,16 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
-import { members } from "@/lib/members";
-
-type Metric = { label: string; points: number };
-function metricsForDepartment(dept: string): Metric[] {
-  if (dept === "oGV") return [{ label: "APL", points: 2 }, { label: "NOC", points: 5 }, { label: "APD", points: 20 }, { label: "RE", points: 50 }];
-  if (dept === "oGTa") return [{ label: "APL", points: 2 }, { label: "NOC", points: 50 }, { label: "APD", points: 100 }, { label: "RE", points: 250 }];
-  if (dept === "MKT") return [{ label: "Opens", points: 1 }, { label: "Content created", points: 5 }, { label: "Campaign runs", points: 20 }, { label: "MOU signed", points: 250 }];
-  if (dept === "BD") return [{ label: "In-kind partnerships ₹10K–₹20K", points: 50 }, { label: "In-kind partnerships above ₹20K", points: 100 }, { label: "Non-monetary partnerships", points: 30 }, { label: "Market research items", points: 25 }, { label: "EwA–ELD", points: 20 }];
-  return [{ label: "LC event attendance", points: 20 }, { label: "Department meeting attendance", points: 15 }, { label: "Team meeting attendance", points: 10 }, { label: "Conference", points: 100 }, { label: "Applied for OC/CC roles", points: 25 }, { label: "Accepted for OC/CC roles", points: 50 }, { label: "XP APD", points: 500 }, { label: "XP RE", points: 1000 }];
-}
+import { activeMembers } from "@/lib/members";
+import { INACTIVE_PM_METRICS, metricsForEvaluation } from "@/lib/scoring";
 
 export default function GradePage() {
   const [subjectId, setSubjectId] = useState("");
@@ -60,9 +52,9 @@ export default function GradePage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const subject = members.find((member) => member.id === subjectId);
-  const evaluator = members.find((member) => member.id === evaluatorId);
-  const list = useMemo(() => (subject ? metricsForDepartment(subject.department) : []), [subject]);
+  const subject = activeMembers.find((member) => member.id === subjectId);
+  const evaluator = activeMembers.find((member) => member.id === evaluatorId);
+  const list = useMemo(() => (subject ? metricsForEvaluation(subject) : []), [subject]);
   const total = list.reduce((sum, metric, index) => sum + (counts[index] || 0) * metric.points, 0);
 
   const submit = async () => {
@@ -179,6 +171,7 @@ export default function GradePage() {
                   <input
                     type="number"
                     min="0"
+                    max="100000"
                     step="1"
                     value={counts[index] ?? 0}
                     disabled={closed}
@@ -186,7 +179,10 @@ export default function GradePage() {
                     onChange={(event) =>
                       setCounts((previous) => {
                         const next = [...previous];
-                        next[index] = Math.max(0, Math.floor(Number(event.target.value) || 0));
+                        next[index] = Math.min(
+                          100000,
+                          Math.max(0, Math.floor(Number(event.target.value) || 0))
+                        );
                         return next;
                       })
                     }
@@ -195,6 +191,19 @@ export default function GradePage() {
                 </div>
               ))}
             </div>
+
+            {subject.role === "MB" && subject.department === "PM" && (
+              <div className="inactive-metrics" aria-label="PM metrics awaiting approval">
+                <p>Additional PM metrics · scoring pending approval</p>
+                {INACTIVE_PM_METRICS.map((metric) => (
+                  <div className="inactive-metric-row" key={metric}>
+                    <span>{metric}</span>
+                    <StatusPill label="Inactive" tone="muted" />
+                    <small>Count-based scoring; point value not approved</small>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="note-block">
               <label htmlFor="notes">Notes</label>

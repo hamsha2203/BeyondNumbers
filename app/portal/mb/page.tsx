@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
-import { members, mbAssignments } from "@/lib/members";
+import { activeMembers, mbAssignments, memberTeams } from "@/lib/members";
 
 export default function MbPortalPage() {
   const [selectedId, setSelectedId] = useState("");
@@ -18,7 +18,7 @@ export default function MbPortalPage() {
     setReady(true);
   }, []);
 
-  const selected = members.find((member) => member.id === selectedId);
+  const selected = activeMembers.find((member) => member.id === selectedId);
   const assignedGBs = useMemo(() => {
     if (!selected || selected.role !== "MB") return [];
 
@@ -26,13 +26,14 @@ export default function MbPortalPage() {
       .filter((assignment) => assignment.evaluatorId === selected.id)
       .map((assignment) => assignment.subjectId);
 
-    return members.filter(
+    return activeMembers.filter(
       (member) =>
         ids.includes(member.id) &&
         member.role === "GB" &&
         member.name.toLowerCase().includes(search.toLowerCase())
     );
   }, [search, selected]);
+  const teamName = memberTeams.find((team) => team.leaderId === selected?.id)?.name;
 
   if (!ready) return null;
 
@@ -57,7 +58,7 @@ export default function MbPortalPage() {
         <label htmlFor="mb-select">Select your name</label>
         <select id="mb-select" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           <option value="">Choose an MB…</option>
-          {members
+          {activeMembers
             .filter((member) => member.role === "MB")
             .map((member) => (
               <option value={member.id} key={member.id}>
@@ -86,6 +87,7 @@ export default function MbPortalPage() {
             <div>
               <p className="eyebrow">Assignments</p>
               <h2>GBs to evaluate</h2>
+              {teamName ? <p className="team-name">{teamName}</p> : null}
             </div>
             <div className="search-box">
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search GBs" />

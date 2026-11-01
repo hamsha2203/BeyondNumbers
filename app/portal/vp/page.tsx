@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
-import { members, vpAssignments } from "@/lib/members";
+import { activeMembers, vpAssignments } from "@/lib/members";
 
 export default function VpPortalPage() {
   const [selectedId, setSelectedId] = useState("");
@@ -18,7 +18,7 @@ export default function VpPortalPage() {
     setReady(true);
   }, []);
 
-  const selected = members.find((member) => member.id === selectedId);
+  const selected = activeMembers.find((member) => member.id === selectedId);
   const assignedMBs = useMemo(() => {
     if (!selected || selected.role !== "VP") return [];
 
@@ -26,7 +26,7 @@ export default function VpPortalPage() {
       .filter((assignment) => assignment.evaluatorId === selected.id)
       .map((assignment) => assignment.subjectId);
 
-    return members.filter(
+    return activeMembers.filter(
       (member) =>
         ids.includes(member.id) &&
         member.role === "MB" &&
@@ -57,7 +57,7 @@ export default function VpPortalPage() {
         <label htmlFor="vp-select">Select your name</label>
         <select id="vp-select" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           <option value="">Choose a VP…</option>
-          {members
+          {activeMembers
             .filter((member) => member.role === "VP")
             .map((member) => (
               <option value={member.id} key={member.id}>
