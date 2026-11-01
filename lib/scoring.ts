@@ -5,7 +5,7 @@ export type Metric = {
   points: number;
 };
 
-const COMMON_MB_METRICS: Metric[] = [
+const COMMON_MEMBERSHIP_METRICS: Metric[] = [
   { label: "Attend LC Events", points: 20 },
   { label: "Department Meeting Attendance", points: 15 },
   { label: "Team Meeting Attendance", points: 10 },
@@ -54,7 +54,7 @@ export const INACTIVE_PM_METRICS = [
 
 export function metricsForEvaluation(subject: Member): Metric[] {
   const departmentMetrics = DEPARTMENT_METRICS[subject.department] ?? [];
-  return subject.role === "MB"
-    ? [...COMMON_MB_METRICS, ...departmentMetrics]
+  return subject.role === "MB" || subject.role === "GB"
+    ? [...COMMON_MEMBERSHIP_METRICS, ...departmentMetrics]
     : departmentMetrics;
 }
