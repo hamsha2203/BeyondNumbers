@@ -37,20 +37,15 @@ const DEPARTMENT_METRICS: Record<string, Metric[]> = {
     { label: "In-kind partnerships ₹10K–₹20K", points: 50 },
     { label: "In-kind partnerships above ₹20K", points: 100 },
     { label: "Non-monetary partnerships", points: 30 },
-    { label: "Market research items", points: 25 },
-    { label: "EwA–ELD", points: 20 },
   ],
   PM: [
+    { label: "PM Initiatives", points: 5 },
+    { label: "O2Os", points: 5 },
+    { label: "Engagement", points: 5 },
     { label: "XP APD", points: 500 },
     { label: "XP RE", points: 1000 },
   ],
 };
-
-export const INACTIVE_PM_METRICS = [
-  "PM Initiatives",
-  "O2Os",
-  "Engagement",
-] as const;
 
 export function metricsForEvaluation(subject: Member): Metric[] {
   const departmentMetrics = DEPARTMENT_METRICS[subject.department] ?? [];

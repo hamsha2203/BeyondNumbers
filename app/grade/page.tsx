@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
 import { activeMembers } from "@/lib/members";
-import { INACTIVE_PM_METRICS, metricsForEvaluation } from "@/lib/scoring";
+import { metricsForEvaluation } from "@/lib/scoring";
 
 export default function GradePage() {
   const [subjectId, setSubjectId] = useState("");
@@ -24,8 +24,9 @@ export default function GradePage() {
     setEvaluatorId(params.get("evaluator") || "");
     setRole(params.get("role") || "");
 
+    let serverDeadline: string | null = null;
     const refresh = () => {
-      const raw = window.localStorage.getItem("bn-deadline");
+      const raw = serverDeadline ?? window.localStorage.getItem("bn-deadline") ?? "";
       if (!raw) {
         setDeadlineText("No deadline configured");
         setClosed(false);
@@ -46,8 +47,21 @@ export default function GradePage() {
       const seconds = Math.floor((ms % 60000) / 1000);
       setDeadlineText(`${days}d ${hours}h ${minutes}m ${seconds}s remaining`);
     };
+    const loadDeadline = async () => {
+      try {
+        const response = await fetch("/api/leaderboard", { cache: "no-store" });
+        const result: { gradingDeadline?: string; error?: string } = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not verify the grading deadline.");
+        serverDeadline = result.gradingDeadline ?? "";
+        refresh();
+      } catch {
+        setError("Could not verify the Google Sheets deadline. Submission will be checked by the server.");
+        refresh();
+      }
+    };
 
     refresh();
+    void loadDeadline();
     const timer = window.setInterval(refresh, 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -191,19 +205,6 @@ export default function GradePage() {
                 </div>
               ))}
             </div>
-
-            {subject.role === "MB" && subject.department === "PM" && (
-              <div className="inactive-metrics" aria-label="PM metrics awaiting approval">
-                <p>Additional PM metrics · scoring pending approval</p>
-                {INACTIVE_PM_METRICS.map((metric) => (
-                  <div className="inactive-metric-row" key={metric}>
-                    <span>{metric}</span>
-                    <StatusPill label="Inactive" tone="muted" />
-                    <small>Count-based scoring; point value not approved</small>
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div className="note-block">
               <label htmlFor="notes">Notes</label>

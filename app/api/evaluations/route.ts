@@ -6,6 +6,7 @@ import {
   vpAssignments,
 } from "@/lib/members";
 import { metricsForEvaluation } from "@/lib/scoring";
+import { readScoreRules, resolveScoreRule } from "@/lib/scoreRules";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,43 @@ export async function POST(request: Request) {
       );
     }
 
+    const sheets = await getGoogleSheets();
+    const spreadsheetId = getSpreadsheetId();
+    const configResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges: ["Score_Rules!A:Z", "Settings!A:B"],
+      valueRenderOption: "UNFORMATTED_VALUE",
+    });
+    const [scoreRuleValues, settingsValues] = configResponse.data.valueRanges ?? [];
+    const scoreRules = readScoreRules(scoreRuleValues?.values ?? []);
+    const settingsRows = settingsValues?.values ?? [];
+    const settingsHeaders = (settingsRows[0] ?? []).map((value) =>
+      String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, ""),
+    );
+    const settingKeyIndex = settingsHeaders.indexOf("settingkey");
+    const settingValueIndex = settingsHeaders.indexOf("settingvalue");
+    if (settingKeyIndex < 0 || settingValueIndex < 0) {
+      throw new Error("Settings must contain setting_key and setting_value columns.");
+    }
+    const deadlineValue = settingsRows.slice(1).find(
+      (row) => String(row[settingKeyIndex] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") === "gradingdeadline",
+    )?.[settingValueIndex];
+    if (deadlineValue) {
+      const deadlineTime = Date.parse(String(deadlineValue));
+      if (!Number.isFinite(deadlineTime)) {
+        return NextResponse.json(
+          { error: "The grading deadline in Google Sheets is invalid. Ask the PM to correct it." },
+          { status: 503 },
+        );
+      }
+      if (deadlineTime <= Date.now()) {
+        return NextResponse.json(
+          { error: "The grading deadline has passed. Please contact the PM." },
+          { status: 403 },
+        );
+      }
+    }
+
     const metrics = metricsForEvaluation(subject);
     const normalizedCounts: { metric: string; count: number; points: number }[] = [];
 
@@ -105,20 +143,45 @@ export async function POST(request: Request) {
         );
       }
 
+      const { rule, ambiguous } = resolveScoreRule(
+        scoreRules,
+        subject.department,
+        metric.label,
+      );
+      if (ambiguous) {
+        return NextResponse.json(
+          { error: `Multiple scoring rules match ${metric.label}. Ask the PM to resolve the rules before submitting.` },
+          { status: 409 }
+        );
+      }
+      if (!rule || !rule.active || !rule.approved || rule.pointsPerUnit === null) {
+        return NextResponse.json(
+          { error: `No active, approved scoring rule is configured for ${metric.label}.` },
+          { status: 409 }
+        );
+      }
+
       normalizedCounts.push({
         metric: metric.label,
         count: item.count,
-        points: metric.points,
+        points: rule.pointsPerUnit,
       });
+    }
+
+    const missingMetrics = metrics.filter(
+      (metric) => !normalizedCounts.some((entry) => entry.metric === metric.label),
+    );
+    if (missingMetrics.length) {
+      return NextResponse.json(
+        { error: `Missing metric responses: ${missingMetrics.map((metric) => metric.label).join(", ")}.` },
+        { status: 400 }
+      );
     }
 
     const total = normalizedCounts.reduce(
       (sum, item) => sum + item.count * item.points,
       0
     );
-
-    const sheets = await getGoogleSheets();
-    const spreadsheetId = getSpreadsheetId();
 
     const existing = await sheets.spreadsheets.values.get({
       spreadsheetId,

@@ -15,8 +15,10 @@ export function CountdownChip() {
   const [text, setText] = useState("Deadline pending");
 
   useEffect(() => {
+    let remoteDeadline = "";
+    let settingsLoaded = false;
     const update = () => {
-      const raw = window.localStorage.getItem("bn-deadline");
+      const raw = settingsLoaded ? remoteDeadline : window.localStorage.getItem("bn-deadline") || "";
       if (!raw) {
         setText("Deadline pending");
         return;
@@ -34,10 +36,27 @@ export function CountdownChip() {
       const seconds = Math.floor((timeLeft % 60000) / 1000);
       setText(`${days}d ${hours}h ${minutes}m ${seconds}s`);
     };
+    const refreshDeadline = async () => {
+      try {
+        const response = await fetch("/api/leaderboard", { cache: "no-store" });
+        if (!response.ok) return;
+        const result: { gradingDeadline?: string } = await response.json();
+        settingsLoaded = true;
+        remoteDeadline = result.gradingDeadline || "";
+        update();
+      } catch {
+        update();
+      }
+    };
 
     update();
+    void refreshDeadline();
+    window.addEventListener("bn-settings-updated", refreshDeadline);
     const timer = window.setInterval(update, 1000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.removeEventListener("bn-settings-updated", refreshDeadline);
+      window.clearInterval(timer);
+    };
   }, []);
 
   return <span className="countdown-chip">{text}</span>;
