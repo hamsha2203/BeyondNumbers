@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
 import { Search, Sparkles, Trophy, Users } from "lucide-react";
 
 type Row = { memberId: string; name: string; department: string; points: number; rank: number };
-type PublishedLeaderboard = {
-  published: boolean;
+type LiveLeaderboard = {
+  live: boolean;
+  refreshedAt: string;
+  cycleId: string;
   rows: { GB: Row[]; MB: Row[] };
 };
 
@@ -14,30 +16,48 @@ const EMPTY_ROWS: Row[] = [];
 
 export default function DashboardPage() {
   const [role, setRole] = useState<"GB" | "MB">("GB");
-  const [leaderboard, setLeaderboard] = useState<PublishedLeaderboard | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LiveLeaderboard | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("all");
   const [sortMode, setSortMode] = useState<"rank" | "name">("rank");
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/leaderboard", { cache: "no-store" })
-      .then(async (response) => {
-        const result: PublishedLeaderboard & { error?: string } = await response.json();
-        if (!response.ok) throw new Error(result.error || "Could not load published results.");
-        if (active) setLeaderboard(result);
-      })
-      .catch((error: unknown) => {
-        if (active) setLoadError(error instanceof Error ? error.message : "Could not load published results.");
-      });
-    return () => {
-      active = false;
-    };
+  const refreshLeaderboard = useCallback(async (isMounted: () => boolean = () => true) => {
+    if (isMounted()) setRefreshing(true);
+    try {
+      const response = await fetch("/api/leaderboard", { cache: "no-store" });
+      const result: LiveLeaderboard & { error?: string } = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load live results.");
+      if (isMounted()) {
+        setLeaderboard(result);
+        setLoadError("");
+      }
+    } catch (error: unknown) {
+      if (isMounted()) {
+        setLoadError(error instanceof Error ? error.message : "Could not load live results.");
+      }
+    } finally {
+      if (isMounted()) setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      await refreshLeaderboard(() => active);
+      if (active) timer = setTimeout(() => void refresh(), 20_000);
+    };
+    void refresh();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [refreshLeaderboard]);
+
   const header = useMemo(() => (role === "GB" ? "GB rankings" : "MB rankings"), [role]);
-  const ready = leaderboard?.published === true;
+  const ready = leaderboard?.live === true;
   const sourceRows = leaderboard?.rows[role] ?? EMPTY_ROWS;
   const departments = useMemo(
     () => [...new Set(sourceRows.map((row) => row.department))].sort((a, b) => a.localeCompare(b)),
@@ -64,28 +84,36 @@ export default function DashboardPage() {
           <h1>Hall of achievers</h1>
           <p className="leaderboard-intro">Every point tells a story. Celebrate the people making it happen.</p>
         </div>
-        <StatusPill label={ready ? "Official results" : "Awaiting publication"} tone={ready ? "success" : "muted"} />
+        <StatusPill label={ready ? "Live results" : "Connecting"} tone={ready ? "success" : "muted"} />
       </section>
 
       {!ready ? (
         <GlassCard className="locked-panel">
-          <h2>Results are on their way</h2>
+          <h2>Loading live results</h2>
           <p>
-          {loadError || "The PM team is preparing the verified leaderboard. Check back soon."}
+          {loadError || "Fetching the latest submitted evaluations."}
           </p>
         </GlassCard>
       ) : (
         <GlassCard className="leaderboard-panel">
           <div className="leaderboard-heading">
           <div>
-            <p className="eyebrow"><Sparkles size={14} /> Official standings</p>
+            <p className="eyebrow"><Sparkles size={14} /> Live standings · {leaderboard.cycleId}</p>
             <h2>{header}</h2>
           </div>
           <div className="leaderboard-total">
-            <span>Published points</span>
+            <span>Current points</span>
             <strong>{totalPoints.toLocaleString("en-IN")}</strong>
           </div>
           </div>
+          <div className="leaderboard-live-status">
+            <span>Updates automatically every 20 seconds</span>
+            <span>{refreshing ? "Refreshing…" : `Updated ${new Date(leaderboard.refreshedAt).toLocaleTimeString()}`}</span>
+            <button type="button" className="leaderboard-sort" disabled={refreshing} onClick={() => void refreshLeaderboard()}>
+              Refresh now
+            </button>
+          </div>
+          {loadError ? <p className="system-message pm-error" role="status">{loadError} Showing the last loaded results.</p> : null}
 
           <div className="leaderboard-toolbar">
           <div className="segmented-control leaderboard-tabs" role="tablist" aria-label="Leaderboard categories">
@@ -158,7 +186,7 @@ export default function DashboardPage() {
           </div>
 
           {rows.length === 0 ? (
-            <div className="empty-state">{sourceRows.length ? "No members match these filters." : "No published entries are available for this category."}</div>
+            <div className="empty-state">{sourceRows.length ? "No members match these filters." : "No valid submitted evaluations are available for this category yet."}</div>
           ) : (
             rows.map((row) => (
               <div className={`leaderboard-row ${row.rank <= 3 ? `leaderboard-top-row rank-${row.rank}` : ""}`} key={row.memberId}>
@@ -174,7 +202,7 @@ export default function DashboardPage() {
           )}
           </div>
 
-          <p className="panel-note leaderboard-footnote">Scores reflect approved evaluation responses in the published snapshot.</p>
+          <p className="panel-note leaderboard-footnote">Scores are recalculated from valid submitted responses. New evaluations appear automatically.</p>
         </GlassCard>
       )}
     </AppShell>

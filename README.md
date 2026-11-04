@@ -11,9 +11,9 @@
 - Evaluators submit MB and GB evaluations to the existing `Evaluations` tab in Google Sheets.
 - Evaluation IDs and metric responses are retained; the server calculates awarded points from active, approved `Score_Rules`.
 - PM/Admin signs in to the server-verified PM dashboard to review live submissions and calculated GB/MB rankings.
-- The PM saves the grading deadline to `Settings`; publication is locked until that deadline passes.
-- On publish, the server validates the latest submissions, appends an immutable ranked snapshot to `Leaderboard`, and updates publication status and timestamp in `Settings`.
-- The public dashboard reads only the latest approved snapshot from Google Sheets. Internal live scores remain separate from public published results.
+- The PM can save the grading deadline to `Settings`; this does not control whether submitted scores are visible.
+- The public dashboard recalculates scores from current valid submissions and approved rules in Google Sheets. It refreshes automatically every 20 seconds; no publication step or snapshot is required.
+- Existing `Leaderboard` snapshots are preserved for history, but the live public dashboard does not read or write that tab.
 
 ## Demo passwords (not secure)
 - MB: `killbill`

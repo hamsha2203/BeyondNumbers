@@ -82,9 +82,6 @@ type Dashboard = {
   settings: {
     cycleId: string;
     gradingDeadline: string;
-    publicationApproved: boolean;
-    publicDashboardEnabled: boolean;
-    publicationPublishedAt: string;
   };
   summary: {
     activeMembers: number;
@@ -94,8 +91,8 @@ type Dashboard = {
     submissions: number;
     submittedEvaluations: number;
     needsReview: number;
-    publishBlockers: number;
-    publishWarnings: number;
+    blockingIssues: number;
+    scoringWarnings: number;
   };
   departments: ProgressGroup[];
   teams: TeamProgress[];
@@ -141,7 +138,6 @@ export default function PmPortalPage() {
   const [loadError, setLoadError] = useState("");
   const [deadline, setDeadline] = useState("");
   const [message, setMessage] = useState("");
-  const [published, setPublished] = useState(false);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("all");
   const [team, setTeam] = useState("all");
@@ -155,8 +151,8 @@ export default function PmPortalPage() {
   const [boardTeam, setBoardTeam] = useState("all");
   const [boardRole, setBoardRole] = useState<"GB" | "MB">("GB");
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
+  const loadDashboard = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setLoadError("");
     try {
       const response = await fetch("/api/admin/dashboard", { cache: "no-store" });
@@ -164,12 +160,11 @@ export default function PmPortalPage() {
       if (!response.ok) throw new Error(result.error || "Could not load the dashboard.");
       const data = result as Dashboard;
       setDashboard(data);
-      setDeadline(asDateTimeLocal(data.settings.gradingDeadline));
-      setPublished(data.settings.publicationApproved && data.settings.publicDashboardEnabled);
+      if (showLoading) setDeadline(asDateTimeLocal(data.settings.gradingDeadline));
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load the dashboard.");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
@@ -200,6 +195,12 @@ export default function PmPortalPage() {
 
   useEffect(() => {
     if (authenticated) void loadDashboard();
+  }, [authenticated, loadDashboard]);
+
+  useEffect(() => {
+    if (!authenticated) return;
+    const timer = window.setInterval(() => void loadDashboard(false), 20_000);
+    return () => window.clearInterval(timer);
   }, [authenticated, loadDashboard]);
 
   const signIn = async () => {
@@ -250,31 +251,11 @@ export default function PmPortalPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save the deadline.");
-      setPublished(false);
       window.dispatchEvent(new Event("bn-settings-updated"));
-      setMessage("Deadline saved to Google Sheets. Publication approval was reset.");
+      setMessage("Deadline saved to Google Sheets.");
       await loadDashboard();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save the deadline.");
-    }
-  };
-
-  const publish = async () => {
-    if ((dashboard?.summary.publishBlockers ?? 0) > 0) {
-      setMessage("Publication is blocked. Resolve the submitted-record issues listed below, then refresh.");
-      return;
-    }
-    setMessage("");
-    try {
-      const response = await fetch("/api/admin/publish", { method: "POST" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not publish the leaderboard.");
-      setPublished(true);
-      setMessage(`Published ${result.publishedEntries} ranked members from Google Sheets.`);
-      await loadDashboard();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not publish the leaderboard.");
-      await loadDashboard();
     }
   };
 
@@ -378,9 +359,9 @@ export default function PmPortalPage() {
           </p>
         </div>
         <div className="pm-header-actions">
-          <StatusPill label={published ? "Published" : "Draft"} tone={published ? "success" : "muted"} />
+          <StatusPill label="Live" tone="success" />
           <button type="button" className="ghost-button" disabled={loading} onClick={() => void loadDashboard()}>
-            {loading ? "Refreshing…" : "Refresh"}
+            {loading ? "Refreshing…" : "Refresh now"}
           </button>
         </div>
       </section>
@@ -459,7 +440,7 @@ export default function PmPortalPage() {
 
           <GlassCard className="pm-dashboard-card">
             <div className="pm-section-heading pm-section-heading-wrap">
-              <div><p className="eyebrow">Internal · approved rules only</p><h2>Live {boardRole} leaderboard</h2></div>
+              <div><p className="eyebrow">Approved rules only</p><h2>Live {boardRole} leaderboard</h2></div>
               <div className="segmented-control" role="tablist" aria-label="Internal leaderboard role">
                 <button type="button" className={boardRole === "GB" ? "active" : ""} onClick={() => setBoardRole("GB")}>GB</button>
                 <button type="button" className={boardRole === "MB" ? "active" : ""} onClick={() => setBoardRole("MB")}>MB</button>
@@ -482,7 +463,7 @@ export default function PmPortalPage() {
               </div>
             </div>
             <p className="pm-disclaimer">
-              Recalculated from submitted metric responses using active, approved Score_Rules. Missing mappings, invalid responses, and duplicate evaluations do not receive a fallback score and block publication.
+              Recalculated from submitted metric responses using active, approved Score_Rules. Missing mappings, invalid responses, and duplicate evaluations are excluded rather than assigned a fallback score.
             </p>
             <div className="pm-table-wrap">
               <table className="pm-table">
@@ -596,9 +577,6 @@ export default function PmPortalPage() {
               <dl className="pm-settings-list">
                 <div><dt>Active cycle</dt><dd>{dashboard.settings.cycleId}</dd></div>
                 <div><dt>Grading deadline</dt><dd>{dashboard.settings.gradingDeadline || "Not configured"}</dd></div>
-                <div><dt>Publication approval</dt><dd><StatusPill label={dashboard.settings.publicationApproved ? "Approved" : "Not approved"} tone={dashboard.settings.publicationApproved ? "success" : "muted"} /></dd></div>
-                <div><dt>Public dashboard</dt><dd><StatusPill label={dashboard.settings.publicDashboardEnabled ? "Enabled" : "Disabled"} tone={dashboard.settings.publicDashboardEnabled ? "success" : "muted"} /></dd></div>
-                <div><dt>Published at</dt><dd>{formatDate(dashboard.settings.publicationPublishedAt)}</dd></div>
               </dl>
             </GlassCard>
             <GlassCard className="pm-card">
@@ -607,24 +585,11 @@ export default function PmPortalPage() {
               <input id="deadline-input" type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
               <button type="button" className="cta-button primary full" disabled={loading} onClick={() => void saveDeadline()}>Save deadline</button>
             </GlassCard>
-            <GlassCard className="pm-card">
-              <h2>Publication</h2>
-              <p>{published ? "The current Google Sheets snapshot is published." : "Deadline check is temporarily disabled. Incomplete evaluations will be excluded from this snapshot."}</p>
-              <p>{dashboard.summary.publishBlockers} blocking record(s) · {dashboard.summary.publishWarnings} excluded record(s) or scoring warning(s)</p>
-              <button
-                type="button"
-                className="cta-button primary full"
-                disabled={loading || dashboard.summary.publishBlockers > 0}
-                onClick={() => void publish()}
-              >
-                Approve &amp; publish
-              </button>
-            </GlassCard>
           </section>
           <GlassCard className="pm-dashboard-card">
             <div className="pm-section-heading">
               <div>
-                <p className="eyebrow">Publication validation</p>
+                <p className="eyebrow">Live scoring checks</p>
                 <h2>Records to review <span className="pm-count">{dashboard.diagnostics.length}</span></h2>
               </div>
             </div>
@@ -633,7 +598,7 @@ export default function PmPortalPage() {
             ) : (
               <div className="pm-table-wrap">
                 <table className="pm-table">
-                  <thead><tr><th>Sheet row</th><th>Member</th><th>Evaluation</th><th>Issue</th><th>Publication</th></tr></thead>
+                  <thead><tr><th>Sheet row</th><th>Member</th><th>Evaluation</th><th>Issue</th><th>Leaderboard</th></tr></thead>
                   <tbody>
                     {dashboard.diagnostics.map((diagnostic, index) => (
                       <tr key={`${diagnostic.evaluationId}-${diagnostic.sheetRow}-${index}`}>
@@ -641,7 +606,7 @@ export default function PmPortalPage() {
                         <td>{diagnostic.memberName}<small>{diagnostic.memberId || "Missing member ID"}</small></td>
                         <td>{diagnostic.evaluationId || "Missing evaluation ID"}</td>
                         <td>{diagnostic.reason}</td>
-                        <td><StatusPill label={diagnostic.blocksPublication ? "Blocked" : "Excluded / warning"} tone={diagnostic.blocksPublication ? "warning" : "muted"} /></td>
+                        <td><StatusPill label={diagnostic.blocksPublication ? "Not scored" : "Warning"} tone={diagnostic.blocksPublication ? "warning" : "muted"} /></td>
                       </tr>
                     ))}
                   </tbody>

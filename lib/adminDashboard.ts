@@ -94,9 +94,6 @@ function readSettings(rows: SheetRow[]) {
   return {
     cycleId: values.activecycleid || values.activecycle || process.env.BN_ACTIVE_CYCLE_ID || "2026_RNR",
     gradingDeadline: values.gradingdeadline || values.deadline || "",
-    publicationApproved: ["true", "yes"].includes((values.publicationapproved || "").toLowerCase()),
-    publicDashboardEnabled: ["true", "yes"].includes((values.publicdashboardenabled || "").toLowerCase()),
-    publicationPublishedAt: values.publicationpublishedat || "",
   };
 }
 
@@ -392,8 +389,8 @@ export function buildAdminDashboard(evaluationRows: SheetRow[], ruleRows: SheetR
       submissions: evaluations.length,
       submittedEvaluations: evaluations.filter((evaluation) => evaluation.status.toLowerCase() === "submitted").length,
       needsReview: evaluations.filter((evaluation) => evaluation.needsReview && evaluation.status.toLowerCase() === "submitted").length,
-      publishBlockers: diagnostics.filter((diagnostic) => diagnostic.blocksPublication).length,
-      publishWarnings: diagnostics.filter((diagnostic) => !diagnostic.blocksPublication).length,
+      blockingIssues: diagnostics.filter((diagnostic) => diagnostic.blocksPublication).length,
+      scoringWarnings: diagnostics.filter((diagnostic) => !diagnostic.blocksPublication).length,
     },
     departments: [...groups.values()].sort((left, right) => left.department.localeCompare(right.department)),
     teams: teamProgress,

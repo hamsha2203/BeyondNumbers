@@ -78,8 +78,6 @@ export async function POST(request: NextRequest) {
     };
 
     writeSetting("grading_deadline", new Date(deadlineValue).toISOString());
-    writeSetting("publication_approved", "FALSE");
-    writeSetting("public_dashboard_enabled", "FALSE");
 
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
