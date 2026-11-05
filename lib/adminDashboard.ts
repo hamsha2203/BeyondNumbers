@@ -170,15 +170,15 @@ export function buildAdminDashboard(evaluationRows: SheetRow[], ruleRows: SheetR
         const missingMetrics = metricsForEvaluation(subject)
           .filter((metric) => !submittedMetrics.has(normalizeMetric(metric.label)))
           .map((metric) => metric.label);
-        const missingLegacyPmMetrics = subject.department === "PM"
-          ? missingMetrics.filter((metric) =>
-              ["PM Initiatives", "O2Os", "Engagement"].includes(metric),
-            )
-          : [];
-        const requiredMissingMetrics = missingMetrics.filter(
-          (metric) => !missingLegacyPmMetrics.includes(metric),
+        const missingLegacyMetrics = missingMetrics.filter((metric) =>
+          ["XP APD", "XP RE"].includes(metric) ||
+          (subject.department === "PM" &&
+            ["PM Initiatives", "O2Os", "Engagement"].includes(metric)),
         );
-        for (const metric of missingLegacyPmMetrics) {
+        const requiredMissingMetrics = missingMetrics.filter(
+          (metric) => !missingLegacyMetrics.includes(metric),
+        );
+        for (const metric of missingLegacyMetrics) {
           issues.push(`No ${metric} count was recorded in this historical evaluation; no points were awarded.`);
         }
         if (requiredMissingMetrics.length) {

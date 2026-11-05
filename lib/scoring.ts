@@ -12,6 +12,8 @@ const COMMON_MEMBERSHIP_METRICS: Metric[] = [
   { label: "Conference", points: 100 },
   { label: "Apply for OC/CC Roles", points: 25 },
   { label: "Accepted for OC/CC Roles", points: 50 },
+  { label: "XP APD", points: 500 },
+  { label: "XP RE", points: 1000 },
 ];
 
 const DEPARTMENT_METRICS: Record<string, Metric[]> = {
@@ -42,8 +44,6 @@ const DEPARTMENT_METRICS: Record<string, Metric[]> = {
     { label: "PM Initiatives", points: 5 },
     { label: "O2Os", points: 5 },
     { label: "Engagement", points: 5 },
-    { label: "XP APD", points: 500 },
-    { label: "XP RE", points: 1000 },
   ],
 };
 
