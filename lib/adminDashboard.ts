@@ -171,7 +171,14 @@ export function buildAdminDashboard(evaluationRows: SheetRow[], ruleRows: SheetR
           .filter((metric) => !submittedMetrics.has(normalizeMetric(metric.label)))
           .map((metric) => metric.label);
         const missingLegacyMetrics = missingMetrics.filter((metric) =>
-          ["XP APD", "XP RE"].includes(metric) ||
+          [
+            "XP APD",
+            "XP RE",
+            "Non-monetary Partnership (CC/OC)",
+            "Monetary Partnership (CC/OC)",
+            "Market Research (OC/CC)",
+            "LEC Contribution",
+          ].includes(metric) ||
           (subject.department === "PM" &&
             ["PM Initiatives", "O2Os", "Engagement"].includes(metric)),
         );

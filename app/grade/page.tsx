@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, GlassCard, StatusPill } from "@/app/components/ui";
 import { activeMembers } from "@/lib/members";
-import { metricsForEvaluation } from "@/lib/scoring";
+import { calculateMetricPoints, metricsForEvaluation, metricScoringDescription } from "@/lib/scoring";
 
 export default function GradePage() {
   const [subjectId, setSubjectId] = useState("");
@@ -69,7 +69,7 @@ export default function GradePage() {
   const subject = activeMembers.find((member) => member.id === subjectId);
   const evaluator = activeMembers.find((member) => member.id === evaluatorId);
   const list = useMemo(() => (subject ? metricsForEvaluation(subject) : []), [subject]);
-  const total = list.reduce((sum, metric, index) => sum + (counts[index] || 0) * metric.points, 0);
+  const total = list.reduce((sum, metric, index) => sum + calculateMetricPoints(metric, counts[index] || 0), 0);
 
   const submit = async () => {
     if (closed) {
@@ -180,28 +180,47 @@ export default function GradePage() {
                 <div className="metric-row" key={metric.label}>
                   <label>
                     {metric.label}
-                    <small>{metric.points} pts each</small>
+                  <small>{metricScoringDescription(metric)}</small>
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100000"
-                    step="1"
-                    value={counts[index] ?? 0}
-                    disabled={closed}
-                    aria-label={`${metric.label} count`}
-                    onChange={(event) =>
-                      setCounts((previous) => {
-                        const next = [...previous];
-                        next[index] = Math.min(
-                          100000,
-                          Math.max(0, Math.floor(Number(event.target.value) || 0))
-                        );
-                        return next;
-                      })
-                    }
-                  />
-                  <strong>{((counts[index] || 0) * metric.points).toLocaleString("en-IN")} pts</strong>
+                  {metric.inputType === "yes_no" ? (
+                    <select
+                      value={counts[index] ? "yes" : "no"}
+                      disabled={closed}
+                      aria-label={`${metric.label} response`}
+                      onChange={(event) =>
+                        setCounts((previous) => {
+                          const next = [...previous];
+                          next[index] = event.target.value === "yes" ? 1 : 0;
+                          return next;
+                        })
+                      }
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      max={metric.inputType === "amount" ? "1000000000" : "100000"}
+                      step="1"
+                      value={counts[index] ?? 0}
+                      disabled={closed}
+                      aria-label={metric.inputType === "amount" ? `${metric.label} amount in rupees` : `${metric.label} count`}
+                      onChange={(event) =>
+                        setCounts((previous) => {
+                          const next = [...previous];
+                          const maximum = metric.inputType === "amount" ? 1000000000 : 100000;
+                          next[index] = Math.min(
+                            maximum,
+                            Math.max(0, Math.floor(Number(event.target.value) || 0))
+                          );
+                          return next;
+                        })
+                      }
+                    />
+                  )}
+                  <strong>{calculateMetricPoints(metric, counts[index] || 0).toLocaleString("en-IN")} pts</strong>
                 </div>
               ))}
             </div>

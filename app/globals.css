@@ -611,7 +611,8 @@ select option {
   color: var(--muted);
 }
 
-.metric-row input {
+.metric-row input,
+.metric-row select {
   min-height: 40px;
   border-radius: 10px;
   background: rgba(255,255,255,0.02);

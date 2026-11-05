@@ -6,6 +6,8 @@ export type ScoreRule = {
   metricId: string;
   pointsPerUnit: number | null;
   unit: string;
+  scoringType: string;
+  scoringConfig: string;
   approved: boolean;
   active: boolean;
 };
@@ -109,6 +111,8 @@ export function readScoreRules(rows: SheetRow[]): ScoreRule[] {
       metricId,
       pointsPerUnit: Number.isFinite(points) ? points : null,
       unit: cell(row, headers, "unit"),
+      scoringType: cell(row, headers, "scoring_type") || "per_count",
+      scoringConfig: cell(row, headers, "scoring_config"),
       approved,
       active,
     }];
@@ -142,13 +146,78 @@ export function resolveScoreRule(
 
 function countValue(value: unknown): number | null {
   if (typeof value === "number") {
-    return Number.isSafeInteger(value) && value >= 0 && value <= 100000 ? value : null;
+    return Number.isSafeInteger(value) && value >= 0 && value <= 1000000000 ? value : null;
   }
   if (typeof value === "string" && /^\d+$/.test(value.trim())) {
     const count = Number(value.trim());
-    return Number.isSafeInteger(count) && count <= 100000 ? count : null;
+    return Number.isSafeInteger(count) && count <= 1000000000 ? count : null;
   }
   return null;
+}
+
+function calculateAward(count: number, rule: ScoreRule) {
+  if (rule.pointsPerUnit === null) {
+    return { points: null, issue: `Approved scoring rule for "${rule.metric}" has no numeric points_per_unit value.` };
+  }
+  if (rule.scoringType === "per_count") {
+    if (count > 100000) {
+      return { points: null, issue: `Count for "${rule.metric}" exceeds the supported range.` };
+    }
+    return { points: count * rule.pointsPerUnit, issue: "" };
+  }
+  let config: Record<string, unknown> = {};
+  try {
+    config = rule.scoringConfig ? JSON.parse(rule.scoringConfig) as Record<string, unknown> : {};
+  } catch {
+    return { points: null, issue: `Scoring configuration for "${rule.metric}" is invalid JSON.` };
+  }
+  if (rule.scoringType === "per_block") {
+    const blockSize = config.blockSize;
+    if (!Number.isSafeInteger(blockSize) || Number(blockSize) <= 0 || count > 100000) {
+      return { points: null, issue: `Scoring configuration or lead count for "${rule.metric}" is invalid.` };
+    }
+    return { points: Math.floor(count / Number(blockSize)) * rule.pointsPerUnit, issue: "" };
+  }
+  if (rule.scoringType === "yes_no") {
+    if (count !== 0 && count !== 1) {
+      return { points: null, issue: `Response for "${rule.metric}" must be Yes or No.` };
+    }
+    return { points: count * rule.pointsPerUnit, issue: "" };
+  }
+  if (rule.scoringType === "tiered_amount") {
+    const tiers = config.tiers;
+    const incrementAfter = config.incrementAfter;
+    if (!Array.isArray(tiers)) {
+      return { points: null, issue: `Scoring configuration for "${rule.metric}" has no valid amount tiers.` };
+    }
+    const tier = tiers.find((candidate) => {
+      if (!candidate || typeof candidate !== "object") return false;
+      const range = candidate as Record<string, unknown>;
+      return Number.isSafeInteger(range.min) && Number.isSafeInteger(range.max) &&
+        Number.isSafeInteger(range.points) && count >= Number(range.min) && count <= Number(range.max);
+    }) as Record<string, unknown> | undefined;
+    if (tier) return { points: Number(tier.points), issue: "" };
+    if (incrementAfter && typeof incrementAfter === "object") {
+      const increment = incrementAfter as Record<string, unknown>;
+      const startAmount = increment.startAmount;
+      const stepAmount = increment.stepAmount;
+      const pointsPerStep = increment.pointsPerStep;
+      const basePoints = increment.basePoints;
+      if (
+        Number.isSafeInteger(startAmount) &&
+        Number.isSafeInteger(stepAmount) &&
+        Number(stepAmount) > 0 &&
+        Number.isSafeInteger(pointsPerStep) &&
+        Number.isSafeInteger(basePoints) &&
+        count > Number(startAmount)
+      ) {
+        const steps = Math.ceil((count - Number(startAmount)) / Number(stepAmount));
+        return { points: Number(basePoints) + steps * Number(pointsPerStep), issue: "" };
+      }
+    }
+    return { points: 0, issue: "" };
+  }
+  return { points: null, issue: `Scoring type "${rule.scoringType}" for "${rule.metric}" is unsupported.` };
 }
 
 export function calculateMetricScores(
@@ -290,7 +359,8 @@ export function calculateMetricScores(
         blocksPublication: false,
       };
     }
-    if (rule.pointsPerUnit === null) {
+    const award = calculateAward(count, rule);
+    if (award.points === null) {
       blocksPublication = true;
       return {
         metric: label,
@@ -299,12 +369,12 @@ export function calculateMetricScores(
         pointsPerUnit: null,
         awardedPoints: null,
         approved: false,
-        issue: `Approved scoring rule for "${label}" has no numeric points_per_unit value.`,
+        issue: award.issue,
         blocksPublication: true,
       };
     }
 
-    const awardedPoints = count * rule.pointsPerUnit;
+    const awardedPoints = award.points;
     if (!Number.isSafeInteger(awardedPoints)) {
       blocksPublication = true;
       return {

@@ -6,7 +6,7 @@ import {
   vpAssignments,
 } from "@/lib/members";
 import { metricsForEvaluation } from "@/lib/scoring";
-import { readScoreRules, resolveScoreRule } from "@/lib/scoreRules";
+import { calculateMetricScores, readScoreRules, resolveScoreRule } from "@/lib/scoreRules";
 
 export const runtime = "nodejs";
 
@@ -114,20 +114,23 @@ export async function POST(request: Request) {
     const normalizedCounts: { metric: string; count: number; points: number }[] = [];
 
     for (const item of counts) {
+      const metric = typeof item?.metric === "string"
+        ? metrics.find((entry) => entry.label === item.metric)
+        : undefined;
+      const maxValue = metric?.inputType === "amount" ? 1000000000 : 100000;
       if (
         !item ||
         typeof item.metric !== "string" ||
         !Number.isSafeInteger(item.count) ||
         item.count < 0 ||
-        item.count > 100000
+        item.count > maxValue ||
+        (metric?.inputType === "yes_no" && item.count !== 0 && item.count !== 1)
       ) {
         return NextResponse.json(
-          { error: "Invalid metric count." },
+          { error: "Invalid metric response." },
           { status: 400 }
         );
       }
-
-      const metric = metrics.find((entry) => entry.label === item.metric);
 
       if (!metric) {
         return NextResponse.json(
@@ -178,10 +181,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const total = normalizedCounts.reduce(
-      (sum, item) => sum + item.count * item.points,
-      0
+    const calculation = calculateMetricScores(
+      JSON.stringify(normalizedCounts),
+      subject.department,
+      scoreRules,
     );
+    if (calculation.blocksPublication || calculation.approvedPoints === null) {
+      return NextResponse.json(
+        { error: `Could not calculate this evaluation: ${calculation.issues.join(" ")}` },
+        { status: 409 }
+      );
+    }
+    const total = calculation.approvedPoints;
 
     const existing = await sheets.spreadsheets.values.get({
       spreadsheetId,
